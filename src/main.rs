@@ -4,6 +4,7 @@ enum Slice {
     Comment(String),
 }
 
+#[derive(PartialEq)]
 enum Status {
     Comment,
     String,
@@ -28,7 +29,7 @@ fn handle_in_comment(prev: char, curr: char, next: Option<char>, prev_status: St
     if next == '/' && curr == '*' {
         return (Status::Comment, None)
     }
-    if let Status::Comment = prev_status {
+    if Status::Comment == prev_status {
         return (Status::Comment, Some(Output::Comment(curr)))
     }
     return (Status::Comment, None)
@@ -56,7 +57,7 @@ fn handle_in_dumb(_prev: (), curr: char, next: Option<char>, _prev_status: ()) -
 fn main() {
     use std::mem;
 
-    let src = "/* hey, just comments */";
+    let src = "/* hey, just comments *//* another comment */";
     let mut status = Status::Dumb;
     let mut prev_status = Status::Broken;
     let mut prev = None;
@@ -105,33 +106,47 @@ fn main() {
 
         prev = curr;
         curr = next;
-        if let Status::Broken = status {
+        if Status::Broken == status {
             break
         }
         if next.is_none() {
             break
         }
-        if let Some(Output::Outside(c)) = output {
-            if let Slice::Outside(ref mut curr_slice) = curr_slice {
-                curr_slice.push(c)
-            } else {
-                let old_slice = mem::replace(&mut curr_slice, Slice::Outside(c.to_string()));
-                slices.push(old_slice)
+        
+        match output {
+            Some(Output::Outside(c)) => {
+                if let Slice::Outside(ref mut curr_slice) = curr_slice {
+                    curr_slice.push(c)
+                } else {
+                    let old_slice = mem::replace(&mut curr_slice, Slice::Outside(c.to_string()));
+                    slices.push(old_slice)
+                }
             }
-        }
-        if let Some(Output::Comment(c)) = output {
-            if let Slice::Comment(ref mut curr_slice) = curr_slice {
-                curr_slice.push(c)
-            } else {
-                let slice = mem::replace(&mut curr_slice, Slice::Comment(c.to_string()));
-                match slice {
-                    Slice::Outside(ref s) if s.is_empty() => (),
-                    _ => slices.push(slice)
+            Some(Output::Comment(c)) => {
+                if let Slice::Comment(ref mut curr_slice) = curr_slice {
+                    curr_slice.push(c)
+                } else {
+                    let slice = mem::replace(&mut curr_slice, Slice::Comment(c.to_string()));
+                    match slice {
+                        Slice::Outside(ref s) if s.is_empty() => (),
+                        _ => slices.push(slice)
+                    }
+                }
+            }
+            None => if Status::Comment == prev_status {
+                match curr_slice {
+                    Slice::Outside(ref x) if x.is_empty() => (),
+                    _ => slices.push(mem::replace(&mut curr_slice, Slice::Outside(String::new())))
                 }
             }
         }
     }
-    slices.push(curr_slice);
-    println!("final: {:?}", slices)
+
+    match curr_slice {
+        Slice::Outside(ref x) if x.is_empty() => (),
+        _ => slices.push(curr_slice)
+    }
+
+    println!("{:?}", slices)
 }
 
