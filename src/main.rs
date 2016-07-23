@@ -32,6 +32,7 @@ fn handle_in_comment(prev: char, curr: char, next: Option<char>, prev_status: St
     if Status::Comment == prev_status {
         return (Status::Comment, Some(Output::Comment(curr)))
     }
+    assert_eq!(curr, '*');
     return (Status::Comment, None)
 }
 
