@@ -1,3 +1,4 @@
+#[derive(Debug)]
 enum Slice {
     Outside(String),
     Comment(String),
@@ -53,12 +54,16 @@ fn handle_in_dumb(_prev: (), curr: char, next: Option<char>, _prev_status: ()) -
 
 
 fn main() {
+    use std::mem;
+
     let src = "/* hey, just comments */";
     let mut status = Status::Dumb;
     let mut prev_status = Status::Broken;
     let mut prev = None;
     let mut curr = None;
     let mut iter = src.chars();
+    let mut slices = Vec::new();
+    let mut curr_slice = Slice::Outside(String::new());
     loop {
         let next = iter.next();
         let mut output = None;
@@ -106,5 +111,27 @@ fn main() {
         if next.is_none() {
             break
         }
+        if let Some(Output::Outside(c)) = output {
+            if let Slice::Outside(ref mut curr_slice) = curr_slice {
+                curr_slice.push(c)
+            } else {
+                let old_slice = mem::replace(&mut curr_slice, Slice::Outside(c.to_string()));
+                slices.push(old_slice)
+            }
+        }
+        if let Some(Output::Comment(c)) = output {
+            if let Slice::Comment(ref mut curr_slice) = curr_slice {
+                curr_slice.push(c)
+            } else {
+                let slice = mem::replace(&mut curr_slice, Slice::Comment(c.to_string()));
+                match slice {
+                    Slice::Outside(ref s) if s.is_empty() => (),
+                    _ => slices.push(slice)
+                }
+            }
+        }
     }
+    slices.push(curr_slice);
+    println!("final: {:?}", slices)
 }
+
