@@ -162,15 +162,23 @@ fn parse(src: &str) {
         _ => slices.push(curr_slice),
     }
 
+    let mut last_spaces = String::new();
+
     for slice in slices {
         match slice {
-            Slice::Comment(val) => print!("/*{}*/", format_comment(val)),
-            Slice::Outside(val) => print!("{}", val),
+            Slice::Comment(val) => print!("/*{}*/", format_comment(val, &last_spaces)),
+            Slice::Outside(val) => {
+                last_spaces = collect_spaces(&val);
+                print!("{}", val)
+            }
         }
     }
 }
 
-fn format_comment(src: String) -> String {
+fn collect_spaces(s: &str) -> String {
+    s.split("\n").last().unwrap().chars().take_while(|&c| c == '\t' || c == ' ').collect()
+}
+fn format_comment(src: String, spaces: &str) -> String {
     if src.chars().all(|c| c != '\n') {
         return src;
     }
@@ -186,7 +194,7 @@ fn format_comment(src: String) -> String {
     if !slices[last_idx].is_empty() {
         slices.push("\n")
     }
-    slices.join("\n")
+    slices.join(&format!("\n  {}", spaces)) + spaces
 }
 
 fn main() {
@@ -209,7 +217,7 @@ fn main() {
 }
 
 fn help(prog: &str) {
-    // bad comment
-    //
+    /* bad comment
+    */
     println!("Usage: {} file-path", prog)
 }
